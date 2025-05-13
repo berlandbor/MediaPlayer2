@@ -10,17 +10,21 @@
       color: white;
       font-family: sans-serif;
       text-align: center;
-      padding: 30px;
+      padding: 20px;
     }
+
     #logo {
-      max-width: 200px;
-      max-height: 100px;
+      max-width: 80%;
+      height: auto;
       margin-bottom: 15px;
     }
+
     h1 {
-      font-size: 20px;
+      font-size: 5vw;
+      max-font-size: 32px;
       margin: 10px 0;
     }
+
     video, audio {
       width: 100%;
       max-width: 720px;
@@ -28,50 +32,106 @@
       border-radius: 10px;
       background: black;
     }
+
+    .back-button {
+      margin-top: 25px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      background-color: #444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      width: 90%;
+      max-width: 300px;
+    }
+
+    .back-button:hover {
+      background-color: #666;
+    }
+
     .nav {
       margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
     }
+
     .nav button {
-      margin: 0 10px;
       padding: 10px 20px;
       background-color: #444;
       border: none;
       color: white;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 1rem;
     }
+
     .nav button:hover {
       background-color: #666;
     }
 
-  .back-button {
-    margin-top: 30px;
-    padding: 10px 20px;
-    font-size: 15px;
-    background-color: #444;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  .back-button:hover {
-    background-color: #666;
-  }
+    .spinner {
+      margin: 30px auto 10px;
+      border: 6px solid #333;
+      border-top: 6px solid #00f0ff;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 1s linear infinite;
+    }
 
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .buffering-text {
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    #qualityBadge {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 2px 6px;
+      font-size: 12px;
+      border-radius: 4px;
+      background: #555;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .error-msg {
+      color: #ff5555;
+      margin-top: 20px;
+      font-size: 1rem;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
   <img id="logo" src="" alt="logo" hidden>
   <h1 id="title">Загрузка...</h1>
+  <button class="back-button" onclick="location.href='index.html'">⏴ Назад к списку</button>
+
   <div id="player"></div>
 
+  <div id="spinner" class="spinner" hidden></div>
+  <div id="bufferingText" class="buffering-text" hidden>
+    <span id="bufferingMessage">Буферизация...</span>
+    <span id="qualityBadge"></span>
+  </div>
+
+  <div id="error" class="error-msg"></div>
+
   <div class="nav">
-    <button onclick="goTo(-1)">◀ Предыдущий</button><hr>
+    <button onclick="goTo(-1)">◀ Предыдущий</button>
     <button onclick="goTo(1)">Следующий ▶</button>
-  </div><hr>
-  
-<button class="back-button" onclick="location.href='index.html'"> Назад к списку</button>
+  </div>
 
   <script>
     const params = new URLSearchParams(location.search);
@@ -80,23 +140,79 @@
     const logo = params.get("logo");
     const index = parseInt(params.get("index"));
 
+    const titleEl = document.getElementById("title");
+    const logoEl = document.getElementById("logo");
+    const spinner = document.getElementById("spinner");
+    const bufferingText = document.getElementById("bufferingText");
+    const bufferingMessage = document.getElementById("bufferingMessage");
+    const qualityBadge = document.getElementById("qualityBadge");
+    const errorEl = document.getElementById("error");
+
     const playlist = JSON.parse(localStorage.getItem("media_autoload")) || [];
 
-    document.getElementById("title").textContent = name || "Канал";
+    titleEl.textContent = name || "Канал";
 
     if (logo && logo.startsWith("http")) {
-      const img = document.getElementById("logo");
-      img.src = logo;
-      img.hidden = false;
+      logoEl.src = logo;
+      logoEl.hidden = false;
     }
 
     const isVideo = /\.(mp4|webm|m3u8)$/i.test(url);
     const player = document.createElement(isVideo ? "video" : "audio");
     player.controls = true;
     player.autoplay = true;
-    player.src = url;
     document.getElementById("player").appendChild(player);
 
+    function showSpinner(message = "Буферизация...") {
+      bufferingMessage.textContent = message;
+      spinner.hidden = false;
+      bufferingText.hidden = false;
+    }
+
+    function hideSpinner() {
+      spinner.hidden = true;
+      bufferingText.hidden = true;
+    }
+
+    function detectQualityFromUrl(url) {
+      if (/1080|720|hd/i.test(url)) return "HD";
+      if (/480|360|sd/i.test(url)) return "SD";
+      return "";
+    }
+
+    const quality = detectQualityFromUrl(url);
+    if (quality) {
+      qualityBadge.textContent = quality;
+      qualityBadge.style.display = "inline-block";
+    } else {
+      qualityBadge.style.display = "none";
+    }
+
+    // Воспроизведение с HLS.js или напрямую
+    if (isVideo && url.endsWith(".m3u8") && Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(player);
+      hls.on(Hls.Events.ERROR, () => {
+        hideSpinner();
+        errorEl.textContent = "Ошибка воспроизведения потока.";
+      });
+    } else {
+      player.src = url;
+    }
+
+    // События буферизации и загрузки
+    player.addEventListener("waiting", () => showSpinner("Буферизация..."));
+    player.addEventListener("loadeddata", () => showSpinner("Загрузка потока..."));
+    player.addEventListener("canplay", () => showSpinner("Ожидание воспроизведения..."));
+    player.addEventListener("playing", hideSpinner);
+    player.addEventListener("canplaythrough", hideSpinner);
+    player.addEventListener("error", () => {
+      hideSpinner();
+      errorEl.textContent = "Не удалось воспроизвести поток.";
+    });
+
+    // Переключение канала
     function goTo(offset) {
       if (isNaN(index)) return;
       let newIndex = index + offset;
