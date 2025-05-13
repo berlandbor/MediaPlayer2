@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Проигрыватель</title>
+  <style>
+    body {
+      background-color: #181818;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    #logo {
+      max-width: 200px;
+      max-height: 100px;
+      margin-bottom: 15px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+    video, audio {
+      width: 100%;
+      max-width: 720px;
+      border: 2px solid #555;
+      border-radius: 10px;
+      background: black;
+    }
+    .nav {
+      margin-top: 20px;
+    }
+    .nav button {
+      margin: 0 10px;
+      padding: 10px 20px;
+      background-color: #444;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .nav button:hover {
+      background-color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <img id="logo" src="" alt="logo" hidden>
+  <h1 id="title">Загрузка...</h1>
+  <div id="player"></div>
+
+  <div class="nav">
+    <button onclick="goTo(-1)">◀ Предыдущий</button>
+    <button onclick="goTo(1)">Следующий ▶</button>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const name = params.get("name");
+    const url = params.get("url");
+    const logo = params.get("logo");
+    const index = parseInt(params.get("index"));
+
+    const playlist = JSON.parse(localStorage.getItem("media_autoload")) || [];
+
+    document.getElementById("title").textContent = name || "Канал";
+
+    if (logo && logo.startsWith("http")) {
+      const img = document.getElementById("logo");
+      img.src = logo;
+      img.hidden = false;
+    }
+
+    const isVideo = /\.(mp4|webm|m3u8)$/i.test(url);
+    const player = document.createElement(isVideo ? "video" : "audio");
+    player.controls = true;
+    player.autoplay = true;
+    player.src = url;
+    document.getElementById("player").appendChild(player);
+
+    function goTo(offset) {
+      if (isNaN(index)) return;
+      let newIndex = index + offset;
+      if (newIndex < 0) newIndex = playlist.length - 1;
+      if (newIndex >= playlist.length) newIndex = 0;
+
+      const s = playlist[newIndex];
+      const target = `player.html?name=${encodeURIComponent(s.name)}&url=${encodeURIComponent(s.url)}&logo=${encodeURIComponent(s.logo || '')}&index=${newIndex}`;
+      location.href = target;
+    }
+  </script>
+
+</body>
+</html>
