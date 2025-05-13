@@ -43,6 +43,21 @@
     .nav button:hover {
       background-color: #666;
     }
+
+  .back-button {
+    margin-top: 30px;
+    padding: 10px 20px;
+    font-size: 15px;
+    background-color: #444;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .back-button:hover {
+    background-color: #666;
+  }
+
   </style>
 </head>
 <body>
@@ -52,9 +67,11 @@
   <div id="player"></div>
 
   <div class="nav">
-    <button onclick="goTo(-1)">◀ Предыдущий</button>
+    <button onclick="goTo(-1)">◀ Предыдущий</button><hr>
     <button onclick="goTo(1)">Следующий ▶</button>
-  </div>
+  </div><hr>
+  
+<button class="back-button" onclick="location.href='index.html'"> Назад к списку</button>
 
   <script>
     const params = new URLSearchParams(location.search);
