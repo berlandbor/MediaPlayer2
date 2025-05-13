@@ -162,7 +162,8 @@
       logoEl.hidden = false;
     }
 
-    const isVideo = /\.(mp4|webm|m3u8)$/i.test(url);
+    const audioFormats = /\.(mp3|aac|ogg|m4a)$/i;
+    const isVideo = !audioFormats.test(url); // всё остальное — видео
     const player = document.createElement(isVideo ? "video" : "audio");
     player.controls = true;
     player.autoplay = true;
