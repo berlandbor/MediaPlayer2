@@ -42,7 +42,7 @@ function handleFile(e) {
 }
 
 function parsePlaylist(text, fileName) {
-  const isM3U = fileName.endsWith(".m3u");
+  const isM3U = fileName.endsWith(".m3u") || fileName.endsWith(".m3u8");
   const lines = text.split(/\r?\n/);
   const stations = [];
 
