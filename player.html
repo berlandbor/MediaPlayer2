@@ -162,18 +162,6 @@
       logoEl.hidden = false;
     }
 
-    // HTTP-потоки через HTTPS → переадресация
-    if (location.protocol === "https:" && url.startsWith("http://")) {
-      const httpUrl = location.href.replace("https://", "http://");
-      const ask = confirm("Этот поток использует HTTP, а вы на HTTPS. Открыть через HTTP?");
-      if (ask) {
-        location.href = httpUrl;
-      } else {
-        errorEl.textContent = "HTTP-поток заблокирован. Открой страницу через http://";
-        throw new Error("Mixed content");
-      }
-    }
-
     const isVideo = /\.(mp4|webm|m3u8)$/i.test(url);
     const player = document.createElement(isVideo ? "video" : "audio");
     player.controls = true;
