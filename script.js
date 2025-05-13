@@ -28,45 +28,7 @@ function handleFile(e) {
 
   const reader = new FileReader();
   reader.onload = () => {
-    const text = reader.result;
-    const lines = text.split(/\r?\n/);
-    const isM3U = file.name.endsWith(".m3u");
-
-    stations = [];
-
-    if (isM3U) {
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.startsWith("#EXTINF")) {
-          const nameMatch = line.match(/,(.+)$/);
-          const name = nameMatch ? nameMatch[1].trim() : "Без названия";
-
-          const logoMatch = line.match(/tvg-logo="(.*?)"/);
-          let logo = logoMatch ? logoMatch[1].trim() : null;
-          if (!logo || !logo.startsWith("http")) {
-            logo = "https://via.placeholder.com/140x80?text=Канал";
-          }
-
-          const groupMatch = line.match(/group-title="(.*?)"/);
-          const group = groupMatch ? groupMatch[1].trim() : null;
-
-          const url = lines[i + 1]?.trim();
-          if (url && !url.startsWith("#")) {
-            stations.push({ name, url, logo, group });
-            i++;
-          }
-        } else if (line && !line.startsWith("#")) {
-          const name = line.split("/").pop();
-          stations.push({ name, url: line, logo: "https://via.placeholder.com/140x80?text=Канал", group: null });
-        }
-      }
-    } else {
-      stations = lines.map(line => {
-        const [name, url] = line.split(" - ");
-        return { name: name?.trim(), url: url?.trim(), logo: "https://via.placeholder.com/140x80?text=Канал", group: null };
-      }).filter(s => s.name && s.url);
-    }
-
+    stations = parsePlaylist(reader.result, file.name);
     if (stations.length) {
       localStorage.setItem("media_autoload", JSON.stringify(stations));
       renderGrid();
@@ -76,6 +38,63 @@ function handleFile(e) {
   };
 
   reader.readAsText(file);
+  sidebar.classList.remove("visible");
+}
+
+function parsePlaylist(text, fileName) {
+  const isM3U = fileName.endsWith(".m3u");
+  const lines = text.split(/\r?\n/);
+  const stations = [];
+
+  let lastName = "", lastLogo = "", lastGroup = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (line.startsWith("#EXTINF")) {
+      const nameMatch = line.match(/,(.+)$/);
+      lastName = nameMatch ? nameMatch[1].trim() : "Без названия";
+
+      const logoMatch = line.match(/tvg-logo="(.*?)"/);
+      lastLogo = logoMatch && logoMatch[1].startsWith("http") ? logoMatch[1] : "";
+
+      const groupMatch = line.match(/group-title="(.*?)"/);
+      lastGroup = groupMatch ? groupMatch[1].trim() : "";
+
+    } else if (line && !line.startsWith("#")) {
+      const url = line;
+      const name = lastName || url.split("/").pop();
+      const logo = lastLogo || "https://via.placeholder.com/140x80?text=Канал";
+      const group = lastGroup || null;
+      stations.push({ name, url, logo, group });
+
+      lastName = ""; lastLogo = ""; lastGroup = "";
+    }
+  }
+
+  if (!isM3U) {
+    lines.forEach(line => {
+      const parts = line.split(" - ");
+      if (parts.length === 2) {
+        const [name, url] = parts;
+        stations.push({
+          name: name.trim(),
+          url: url.trim(),
+          logo: "https://via.placeholder.com/140x80?text=Канал",
+          group: null
+        });
+      } else if (line.startsWith("http")) {
+        stations.push({
+          name: line.split("/").pop(),
+          url: line,
+          logo: "https://via.placeholder.com/140x80?text=Канал",
+          group: null
+        });
+      }
+    });
+  }
+
+  return stations;
 }
 
 function renderGrid() {
@@ -86,7 +105,7 @@ function renderGrid() {
     tile.onclick = () => openPlayer(station, i);
 
     const img = document.createElement("img");
-    img.src = station.logo;
+    img.src = station.logo || "https://via.placeholder.com/140x80?text=Канал";
     img.alt = station.name;
 
     const nameEl = document.createElement("span");
