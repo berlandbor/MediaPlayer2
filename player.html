@@ -307,7 +307,7 @@
       if (!isNaN(parseFloat(bitrate))) {
         const numeric = parseFloat(bitrate);
         bitrateHistory.push(numeric);
-        if (bitrateHistory.length > 100) bitrateHistory.shift();
+        if (bitrateHistory.length > 10) bitrateHistory.shift();
 
         // Автоматическое масштабирование
         const visibleHistory = bitrateHistory.slice(-30);
@@ -349,7 +349,7 @@
 
     function drawGraph(value) {
       graphData.push(value);
-      if (graphData.length > 100) graphData.shift();
+      if (graphData.length > 10) graphData.shift();
 
       const width = canvas.width;
       const height = canvas.height;
