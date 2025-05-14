@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Проигрыватель</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     body {
       background-color: #181818;
@@ -121,7 +120,7 @@
   <div class="container">
     <img id="logo" src="" alt="logo" hidden />
     <h1 id="title">Загрузка...</h1>
-    <button class="back-button" onclick="location.href='index.html'">🔙Назад к списку</button>
+    <button class="back-button" onclick="location.href='index.html'">⏴ Назад к списку</button>
 
     <div id="player"></div>
 
@@ -163,11 +162,12 @@
     }
 
     const audioFormats = /\.(mp3|aac|ogg|m4a)$/i;
-    const isVideo = !audioFormats.test(url); // всё остальное — видео
+    const isVideo = !audioFormats.test(url);
     const player = document.createElement(isVideo ? "video" : "audio");
     player.controls = true;
     player.autoplay = true;
     playerBox.appendChild(player);
+    player.src = url;
 
     const quality = /1080|720|hd/i.test(url)
       ? "HD"
@@ -190,18 +190,6 @@
     function hideSpinner() {
       spinner.hidden = true;
       bufferingText.hidden = true;
-    }
-
-    if (isVideo && url.endsWith(".m3u8") && Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(player);
-      hls.on(Hls.Events.ERROR, () => {
-        hideSpinner();
-        errorEl.textContent = "Ошибка воспроизведения потока.";
-      });
-    } else {
-      player.src = url;
     }
 
     player.addEventListener("waiting", () => showSpinner("Буферизация..."));
