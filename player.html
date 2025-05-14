@@ -39,19 +39,6 @@
     .back-button:hover {
       background-color: #666;
     }
-    .spinner {
-      margin: 25px auto 10px;
-      border: 6px solid #333;
-      border-top: 6px solid #00f0ff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
     #bitrateGraph {
       margin-top: 10px;
       background: #222;
@@ -74,11 +61,8 @@
     <h1 id="title">Загрузка...</h1>
     <button class="back-button" onclick="location.href='index.html'">⏴ Назад</button>
     <div id="player"></div>
-    <div id="spinner" class="spinner" hidden></div>
-
     <div id="bitrateAlert">⚠ Слабый поток!</div>
     <canvas id="bitrateGraph" width="720" height="100"></canvas>
-
     <audio id="alertSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2634eebd7d.mp3?filename=alert-7393.mp3" preload="auto"></audio>
   </div>
 
@@ -90,7 +74,6 @@
     const playlist = JSON.parse(localStorage.getItem("media_autoload")) || [];
 
     document.getElementById("title").textContent = title;
-
     const player = document.createElement(/\.(mp3|aac|m4a|ogg)$/i.test(url) ? "audio" : "video");
     player.src = url;
     player.controls = true;
@@ -139,7 +122,7 @@
         const avg = bitrateHistory.reduce((a, b) => a + b, 0) / bitrateHistory.length;
         maxBitrateDynamic = Math.ceil(Math.max(...bitrateHistory, 100) / 100) * 100;
         drawGraph(bitrate, avg);
-        // тревога
+
         if (bitrate < 50) {
           alertBox.style.display = "block";
           alertBox.style.visibility = (now % 1000 < 500) ? "visible" : "hidden";
@@ -187,7 +170,6 @@
         ctx.stroke();
       }
 
-      // подписи
       ctx.fillStyle = "#ccc";
       ctx.textAlign = "right";
       const yMax = h - (bitrateMax / max) * h;
