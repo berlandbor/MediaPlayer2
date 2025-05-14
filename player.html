@@ -143,7 +143,7 @@
   <div class="container">
     <img id="logo" src="" alt="logo" hidden />
     <h1 id="title">Загрузка...</h1>
-    <button class="back-button" onclick="location.href='index.html'">⏴ Назад к списку</button>
+    <button class="back-button" onclick="location.href='index.html'">🔙Назад к списку</button>
 
     <div id="player"></div>
 
@@ -167,7 +167,6 @@
     </div>
 
     <div id="bitrateAlert">⚠ Слабый поток! Возможны перебои воспроизведения</div>
-
     <canvas id="bitrateGraph" width="720" height="100"></canvas>
 
     <div id="error" class="error-msg"></div>
@@ -215,6 +214,7 @@
     let bitrateMin = Infinity;
     let alertPlayed = false;
     let lowBitrateStart = null;
+    let maxBitrateDynamic = 500;
 
     titleEl.textContent = name || "Канал";
     if (logo && logo.startsWith("http")) {
@@ -293,7 +293,7 @@
         const deltaBuffer = bufferLength - lastBufferLength;
         const deltaTime = (now - lastBufferCheck) / 1000;
         if (deltaBuffer > 0 && deltaTime > 0) {
-          bitrate = (deltaBuffer * 160).toFixed(1); // ~160 кбит/с на 1 сек. буфера
+          bitrate = (deltaBuffer * 160).toFixed(1);
         }
       }
 
@@ -306,9 +306,15 @@
 
       if (!isNaN(parseFloat(bitrate))) {
         const numeric = parseFloat(bitrate);
-        drawGraph(numeric);
         bitrateHistory.push(numeric);
         if (bitrateHistory.length > 100) bitrateHistory.shift();
+
+        // Автоматическое масштабирование
+        const visibleHistory = bitrateHistory.slice(-30);
+        const maxInView = Math.max(...visibleHistory, 100);
+        maxBitrateDynamic = Math.ceil(maxInView / 100) * 100;
+
+        drawGraph(numeric);
 
         const avg = bitrateHistory.reduce((a, b) => a + b, 0) / bitrateHistory.length;
         bitrateAvgEl.textContent = avg.toFixed(1);
@@ -325,12 +331,10 @@
         if (numeric < 50) {
           bitrateAlert.style.display = "block";
           bitrateAlert.style.visibility = (Date.now() % 1000 < 500) ? "visible" : "hidden";
-
           if (!alertPlayed) {
             alertSound.play().catch(() => {});
             alertPlayed = true;
           }
-
           if (!lowBitrateStart) lowBitrateStart = Date.now();
           else if (Date.now() - lowBitrateStart > 10000) {
             location.reload();
@@ -349,17 +353,16 @@
 
       const width = canvas.width;
       const height = canvas.height;
-      ctx.clearRect(0, 0, width, height);
+      const maxBitrate = maxBitrateDynamic;
 
-      const maxBitrate = 500;
-      const yStep = 100;
+      ctx.clearRect(0, 0, width, height);
 
       ctx.font = "10px sans-serif";
       ctx.fillStyle = "#888";
       ctx.strokeStyle = "#333";
       ctx.lineWidth = 1;
 
-      for (let yVal = yStep; yVal <= maxBitrate; yVal += yStep) {
+      for (let yVal = 100; yVal <= maxBitrate; yVal += 100) {
         const y = height - (yVal / maxBitrate) * height;
         ctx.beginPath();
         ctx.moveTo(0, y);
@@ -377,10 +380,8 @@
         for (let i = 1; i < graphData.length; i++) {
           const nextX = i * stepX;
           const nextY = height - (graphData[i] / maxBitrate) * height;
-
           ctx.lineTo(nextX, y);     // горизонтально
           ctx.lineTo(nextX, nextY); // вертикально
-
           y = nextY;
         }
 
