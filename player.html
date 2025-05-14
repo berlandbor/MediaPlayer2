@@ -13,24 +13,11 @@
       justify-content: center;
       padding: 20px;
     }
-
     .container {
       width: 100%;
       max-width: 800px;
       text-align: center;
     }
-
-    #logo {
-      max-width: 200px;
-      height: auto;
-      margin-bottom: 10px;
-    }
-
-    h1 {
-      font-size: 22px;
-      margin: 10px 0;
-    }
-
     video, audio {
       width: 100%;
       max-width: 720px;
@@ -39,7 +26,6 @@
       border-radius: 10px;
       background: black;
     }
-
     .back-button {
       margin-top: 15px;
       padding: 10px 20px;
@@ -50,11 +36,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
-
     .back-button:hover {
       background-color: #666;
     }
-
     .spinner {
       margin: 25px auto 10px;
       border: 6px solid #333;
@@ -64,62 +48,10 @@
       height: 40px;
       animation: spin 1s linear infinite;
     }
-
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-
-    .buffering-text {
-      font-size: 14px;
-      color: #aaa;
-    }
-
-    #qualityBadge {
-      display: inline-block;
-      margin-left: 8px;
-      padding: 2px 6px;
-      font-size: 12px;
-      border-radius: 4px;
-      background: #555;
-      color: #fff;
-      font-weight: bold;
-    }
-
-    .error-msg {
-      color: #ff5555;
-      margin-top: 15px;
-      font-size: 0.95rem;
-    }
-
-    .nav {
-      margin-top: 15px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .nav button {
-      padding: 8px 16px;
-      font-size: 14px;
-      background-color: #444;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .nav button:hover {
-      background-color: #666;
-    }
-
-    #streamStats {
-      margin-top: 10px;
-      font-size: 13px;
-      color: #bbb;
-    }
-
     #bitrateGraph {
       margin-top: 10px;
       background: #222;
@@ -128,7 +60,6 @@
       max-width: 720px;
       height: 100px;
     }
-
     #bitrateAlert {
       margin-top: 10px;
       font-size: 14px;
@@ -140,118 +71,134 @@
 </head>
 <body>
   <div class="container">
-    <img id="logo" src="" alt="logo" hidden />
     <h1 id="title">Загрузка...</h1>
-    <button class="back-button" onclick="location.href='index.html'">🔙Назад к списку</button>
-
+    <button class="back-button" onclick="location.href='index.html'">⏴ Назад</button>
     <div id="player"></div>
-
     <div id="spinner" class="spinner" hidden></div>
-    <div id="bufferingText" class="buffering-text" hidden>
-      <span id="bufferingMessage">Буферизация...</span>
-      <span id="qualityBadge"></span>
-    </div>
 
-    <div id="streamStats" hidden>
-      <div>
-        Скорость загрузки:
-        <span id="bitrate" style="font-weight: bold;">-</span> кбит/с
-        <span style="color:#aaa; font-size: 12px;">
-          (средняя: <span id="bitrateAvg">-</span>,
-          макс: <span id="bitrateMax">-</span>,
-          мин: <span id="bitrateMin">-</span>)
-        </span>
-      </div>
-      <div>Буфер: <span id="buffer">-</span> сек</div>
-    </div>
-
-    <div id="bitrateAlert">⚠ Слабый поток! Возможны перебои воспроизведения</div>
+    <div id="bitrateAlert">⚠ Слабый поток!</div>
     <canvas id="bitrateGraph" width="720" height="100"></canvas>
-
-    <div id="error" class="error-msg"></div>
-
-    <div class="nav">
-      <button onclick="goTo(-1)">◀ Предыдущий</button>
-      <button onclick="goTo(1)">Следующий ▶</button>
-    </div>
 
     <audio id="alertSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2634eebd7d.mp3?filename=alert-7393.mp3" preload="auto"></audio>
   </div>
 
   <script>
+    const params = new URLSearchParams(location.search);
+    const title = params.get("name") || "Канал";
+    const url = params.get("url");
+    const index = parseInt(params.get("index"));
+    const playlist = JSON.parse(localStorage.getItem("media_autoload")) || [];
+
+    document.getElementById("title").textContent = title;
+
+    const player = document.createElement(/\.(mp3|aac|m4a|ogg)$/i.test(url) ? "audio" : "video");
+    player.src = url;
+    player.controls = true;
+    player.autoplay = true;
+    document.getElementById("player").appendChild(player);
+
     const canvas = document.getElementById("bitrateGraph");
     const ctx = canvas.getContext("2d");
+    const alertBox = document.getElementById("bitrateAlert");
+    const alertSound = document.getElementById("alertSound");
 
-    let graphData = [];
-    let bitrateHistory = [];
-    let bitrateMax = 0;
-    let bitrateMin = Infinity;
-    let alertPlayed = false;
-    let lowBitrateStart = null;
+    let graphData = [], bitrateHistory = [];
+    let lastBuffer = 0, lastCheck = 0;
+    let bitrateMin = Infinity, bitrateMax = 0, alertPlayed = false, lowStart = null;
     let maxBitrateDynamic = 500;
 
-    // Остальной код такой же как раньше (включая создание плеера, stats, alert и т.д.)
-    // ...
-    // В updateStreamStats() добавляем автоматический диапазон:
-    // maxBitrateDynamic = Math.ceil(maxInView / 100) * 100;
+    function updateStats() {
+      if (!player.buffered || player.readyState < 2) return;
 
-    function drawGraph(value) {
-      graphData.push(value);
-      if (graphData.length > 100) graphData.shift();
+      let buf = 0;
+      for (let i = 0; i < player.buffered.length; i++) {
+        if (player.currentTime >= player.buffered.start(i) && player.currentTime <= player.buffered.end(i)) {
+          buf = player.buffered.end(i) - player.currentTime;
+          break;
+        }
+      }
 
-      const width = canvas.width;
-      const height = canvas.height;
-      const maxBitrate = maxBitrateDynamic;
+      const now = Date.now();
+      let bitrate = 0;
+      if (lastCheck > 0) {
+        const delta = buf - lastBuffer;
+        const dt = (now - lastCheck) / 1000;
+        if (delta > 0 && dt > 0) bitrate = delta * 160;
+      }
+      lastBuffer = buf;
+      lastCheck = now;
 
-      ctx.clearRect(0, 0, width, height);
+      if (bitrate > 0) {
+        bitrateHistory.push(bitrate);
+        if (bitrateHistory.length > 100) bitrateHistory.shift();
+        graphData.push(bitrate);
+        if (graphData.length > 100) graphData.shift();
 
-      // Сетка
+        bitrateMin = Math.min(bitrateMin, bitrate);
+        bitrateMax = Math.max(bitrateMax, bitrate);
+        const avg = bitrateHistory.reduce((a, b) => a + b, 0) / bitrateHistory.length;
+        maxBitrateDynamic = Math.ceil(Math.max(...bitrateHistory, 100) / 100) * 100;
+        drawGraph(bitrate, avg);
+        // тревога
+        if (bitrate < 50) {
+          alertBox.style.display = "block";
+          alertBox.style.visibility = (now % 1000 < 500) ? "visible" : "hidden";
+          if (!alertPlayed) {
+            alertSound.play().catch(()=>{});
+            alertPlayed = true;
+          }
+          if (!lowStart) lowStart = now;
+          else if (now - lowStart > 10000) location.reload();
+        } else {
+          alertBox.style.display = "none";
+          alertPlayed = false;
+          lowStart = null;
+        }
+      }
+    }
+
+    function drawGraph(current, avg) {
+      const w = canvas.width, h = canvas.height, max = maxBitrateDynamic;
+      ctx.clearRect(0, 0, w, h);
       ctx.font = "10px sans-serif";
       ctx.fillStyle = "#888";
       ctx.strokeStyle = "#333";
-      ctx.lineWidth = 1;
-      for (let yVal = 100; yVal <= maxBitrate; yVal += 100) {
-        const y = height - (yVal / maxBitrate) * height;
+      for (let yVal = 100; yVal <= max; yVal += 100) {
+        const y = h - (yVal / max) * h;
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+        ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
         ctx.fillText(`${yVal}`, 5, y - 2);
       }
 
-      // Линия графика (битовый стиль)
       if (graphData.length > 1) {
-        const stepX = width / (graphData.length - 1);
-        let y = height - (graphData[0] / maxBitrate) * height;
+        const stepX = w / (graphData.length - 1);
+        let y = h - (graphData[0] / max) * h;
         ctx.beginPath();
         ctx.moveTo(0, y);
         for (let i = 1; i < graphData.length; i++) {
-          const nextX = i * stepX;
-          const nextY = height - (graphData[i] / maxBitrate) * height;
-          ctx.lineTo(nextX, y);
-          ctx.lineTo(nextX, nextY);
-          y = nextY;
+          const x = i * stepX;
+          const y2 = h - (graphData[i] / max) * h;
+          ctx.lineTo(x, y);
+          ctx.lineTo(x, y2);
+          y = y2;
         }
         ctx.strokeStyle = "#00f0ff";
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // === Подписи значений на графике ===
-      const avg = bitrateHistory.reduce((a, b) => a + b, 0) / bitrateHistory.length;
-
+      // подписи
       ctx.fillStyle = "#ccc";
-      ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
-
-      const yMax = height - (bitrateMax / maxBitrate) * height;
-      const yAvg = height - (avg / maxBitrate) * height;
-      const yMin = height - (bitrateMin / maxBitrate) * height;
-
-      ctx.fillText(`макс: ${bitrateMax.toFixed(0)}`, width - 5, Math.max(yMax, 12));
-      ctx.fillText(`средн: ${avg.toFixed(0)}`, width - 5, Math.max(yAvg, 24));
-      ctx.fillText(`мин: ${bitrateMin.toFixed(0)}`, width - 5, Math.min(yMin, height - 6));
+      const yMax = h - (bitrateMax / max) * h;
+      const yAvg = h - (avg / max) * h;
+      const yMin = h - (bitrateMin / max) * h;
+      ctx.fillText(`макс: ${bitrateMax.toFixed(0)}`, w - 5, Math.max(yMax, 12));
+      ctx.fillText(`средн: ${avg.toFixed(0)}`, w - 5, Math.max(yAvg, 24));
+      ctx.fillText(`мин: ${bitrateMin.toFixed(0)}`, w - 5, Math.min(yMin, h - 6));
     }
+
+    setInterval(updateStats, 1000);
   </script>
 </body>
 </html>
