@@ -114,6 +114,29 @@
     .nav button:hover {
       background-color: #666;
     }
+
+    #streamStats {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #bbb;
+    }
+
+    #bitrateGraph {
+      margin-top: 10px;
+      background: #222;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 720px;
+      height: 100px;
+    }
+
+    #bitrateAlert {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ff4444;
+      font-weight: bold;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -130,12 +153,31 @@
       <span id="qualityBadge"></span>
     </div>
 
+    <div id="streamStats" hidden>
+      <div>
+        Скорость загрузки:
+        <span id="bitrate" style="font-weight: bold;">-</span> кбит/с
+        <span style="color:#aaa; font-size: 12px;">
+          (средняя: <span id="bitrateAvg">-</span>,
+          макс: <span id="bitrateMax">-</span>,
+          мин: <span id="bitrateMin">-</span>)
+        </span>
+      </div>
+      <div>Буфер: <span id="buffer">-</span> сек</div>
+    </div>
+
+    <div id="bitrateAlert">⚠ Слабый поток! Возможны перебои воспроизведения</div>
+
+    <canvas id="bitrateGraph" width="720" height="100"></canvas>
+
     <div id="error" class="error-msg"></div>
 
     <div class="nav">
       <button onclick="goTo(-1)">◀ Предыдущий</button>
       <button onclick="goTo(1)">Следующий ▶</button>
     </div>
+
+    <audio id="alertSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2634eebd7d.mp3?filename=alert-7393.mp3" preload="auto"></audio>
   </div>
 
   <script>
@@ -154,6 +196,25 @@
     const qualityBadge = document.getElementById("qualityBadge");
     const errorEl = document.getElementById("error");
     const playerBox = document.getElementById("player");
+
+    const statsEl = document.getElementById("streamStats");
+    const bitrateEl = document.getElementById("bitrate");
+    const bitrateAvgEl = document.getElementById("bitrateAvg");
+    const bitrateMaxEl = document.getElementById("bitrateMax");
+    const bitrateMinEl = document.getElementById("bitrateMin");
+    const bufferEl = document.getElementById("buffer");
+    const bitrateAlert = document.getElementById("bitrateAlert");
+    const alertSound = document.getElementById("alertSound");
+
+    const canvas = document.getElementById("bitrateGraph");
+    const ctx = canvas.getContext("2d");
+
+    let graphData = [];
+    let bitrateHistory = [];
+    let bitrateMax = 0;
+    let bitrateMin = Infinity;
+    let alertPlayed = false;
+    let lowBitrateStart = null;
 
     titleEl.textContent = name || "Канал";
     if (logo && logo.startsWith("http")) {
@@ -209,6 +270,132 @@
       const target = `player.html?name=${encodeURIComponent(s.name)}&url=${encodeURIComponent(s.url)}&logo=${encodeURIComponent(s.logo || '')}&index=${newIndex}`;
       location.href = target;
     }
+
+    let lastBufferLength = 0;
+    let lastBufferCheck = 0;
+
+    function updateStreamStats() {
+      if (!player || !player.buffered || player.readyState < 2) return;
+
+      const now = Date.now();
+      const buffered = player.buffered;
+      let bufferLength = 0;
+
+      for (let i = 0; i < buffered.length; i++) {
+        if (player.currentTime >= buffered.start(i) && player.currentTime <= buffered.end(i)) {
+          bufferLength = buffered.end(i) - player.currentTime;
+          break;
+        }
+      }
+
+      let bitrate = "-";
+      if (lastBufferCheck > 0 && now > lastBufferCheck) {
+        const deltaBuffer = bufferLength - lastBufferLength;
+        const deltaTime = (now - lastBufferCheck) / 1000;
+        if (deltaBuffer > 0 && deltaTime > 0) {
+          bitrate = (deltaBuffer * 160).toFixed(1); // ~160 кбит/с на 1 сек. буфера
+        }
+      }
+
+      lastBufferLength = bufferLength;
+      lastBufferCheck = now;
+
+      bitrateEl.textContent = bitrate;
+      bufferEl.textContent = bufferLength.toFixed(1);
+      statsEl.hidden = false;
+
+      if (!isNaN(parseFloat(bitrate))) {
+        const numeric = parseFloat(bitrate);
+        drawGraph(numeric);
+        bitrateHistory.push(numeric);
+        if (bitrateHistory.length > 100) bitrateHistory.shift();
+
+        const avg = bitrateHistory.reduce((a, b) => a + b, 0) / bitrateHistory.length;
+        bitrateAvgEl.textContent = avg.toFixed(1);
+        bitrateMax = Math.max(bitrateMax, numeric);
+        bitrateMin = Math.min(bitrateMin, numeric);
+        bitrateMaxEl.textContent = bitrateMax.toFixed(1);
+        bitrateMinEl.textContent = bitrateMin.toFixed(1);
+
+        bitrateEl.style.color =
+          numeric >= 200 ? "#00ff88" :
+          numeric >= 100 ? "#ffff55" :
+          "#ff4444";
+
+        if (numeric < 50) {
+          bitrateAlert.style.display = "block";
+          bitrateAlert.style.visibility = (Date.now() % 1000 < 500) ? "visible" : "hidden";
+
+          if (!alertPlayed) {
+            alertSound.play().catch(() => {});
+            alertPlayed = true;
+          }
+
+          if (!lowBitrateStart) lowBitrateStart = Date.now();
+          else if (Date.now() - lowBitrateStart > 10000) {
+            location.reload();
+          }
+        } else {
+          bitrateAlert.style.display = "none";
+          alertPlayed = false;
+          lowBitrateStart = null;
+        }
+      }
+    }
+
+    function drawGraph(value) {
+      graphData.push(value);
+      if (graphData.length > 100) graphData.shift();
+
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      const maxBitrate = 500;
+      const yStep = 100;
+
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = "#888";
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 1;
+
+      for (let yVal = yStep; yVal <= maxBitrate; yVal += yStep) {
+        const y = height - (yVal / maxBitrate) * height;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.fillText(`${yVal} кбит/с`, 5, y - 3);
+      }
+
+      if (graphData.length > 1) {
+        const stepX = width / (graphData.length - 1);
+        let y = height - (graphData[0] / maxBitrate) * height;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+
+        for (let i = 1; i < graphData.length; i++) {
+          const nextX = i * stepX;
+          const nextY = height - (graphData[i] / maxBitrate) * height;
+
+          ctx.lineTo(nextX, y);     // горизонтально
+          ctx.lineTo(nextX, nextY); // вертикально
+
+          y = nextY;
+        }
+
+        ctx.strokeStyle = "#00f0ff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(width, y, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = "#00ffff";
+        ctx.fill();
+      }
+    }
+
+    setInterval(updateStreamStats, 1000);
   </script>
 </body>
 </html>
