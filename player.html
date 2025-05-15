@@ -307,7 +307,7 @@
       if (!isNaN(parseFloat(bitrate))) {
         const numeric = parseFloat(bitrate);
         bitrateHistory.push(numeric);
-        if (bitrateHistory.length > 10) bitrateHistory.shift();
+        if (bitrateHistory.length > 5) bitrateHistory.shift();
 
         // Автоматическое масштабирование
         const visibleHistory = bitrateHistory.slice(-30);
@@ -349,7 +349,7 @@
 
     function drawGraph(value) {
       graphData.push(value);
-      if (graphData.length > 10) graphData.shift();
+      if (graphData.length > 5) graphData.shift();
 
       const width = canvas.width;
       const height = canvas.height;
@@ -362,7 +362,7 @@
       ctx.strokeStyle = "#333";
       ctx.lineWidth = 1;
 
-      for (let yVal = 100; yVal <= maxBitrate; yVal += 10) {
+      for (let yVal = 100; yVal <= maxBitrate; yVal += 100) {
         const y = height - (yVal / maxBitrate) * height;
         ctx.beginPath();
         ctx.moveTo(0, y);
