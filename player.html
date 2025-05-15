@@ -214,7 +214,7 @@
     let bitrateMin = Infinity;
     let alertPlayed = false;
     let lowBitrateStart = null;
-    let maxBitrateDynamic = 100;
+    let maxBitrateDynamic = 10;
 
     titleEl.textContent = name || "Канал";
     if (logo && logo.startsWith("http")) {
@@ -307,7 +307,7 @@
       if (!isNaN(parseFloat(bitrate))) {
         const numeric = parseFloat(bitrate);
         bitrateHistory.push(numeric);
-        if (bitrateHistory.length > 5) bitrateHistory.shift();
+        if (bitrateHistory.length > 3) bitrateHistory.shift();
 
         // Автоматическое масштабирование
         const visibleHistory = bitrateHistory.slice(-30);
@@ -349,7 +349,7 @@
 
     function drawGraph(value) {
       graphData.push(value);
-      if (graphData.length > 5) graphData.shift();
+      if (graphData.length > 3) graphData.shift();
 
       const width = canvas.width;
       const height = canvas.height;
