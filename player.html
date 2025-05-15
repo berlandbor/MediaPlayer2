@@ -312,7 +312,7 @@
         // Автоматическое масштабирование
       const visibleHistory = bitrateHistory.slice(-3); // если вы показываете последние 3 значения
 const maxInView = Math.max(...visibleHistory);
-maxBitrateDynamic = Math.ceil(maxInView / 50) * 10; // шаг можно оставить 50 или подобрать под себя
+maxBitrateDynamic = Math.ceil(maxInView / 10) * 10; // шаг можно оставить 50 или подобрать под себя
 
         drawGraph(numeric);
 
