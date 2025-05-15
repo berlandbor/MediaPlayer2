@@ -362,14 +362,18 @@
       ctx.strokeStyle = "#333";
       ctx.lineWidth = 1;
 
-      for (let yVal = 100; yVal <= maxBitrate; yVal += 100) {
-        const y = height - (yVal / maxBitrate) * height;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-        ctx.fillText(`${yVal} кбит/с`, 5, y - 3);
-      }
+const maxLines = 5; // не более 5 подписей по Y
+const step = Math.ceil(maxBitrate / maxLines / 100) * 100;
+
+for (let yVal = step; yVal <= maxBitrate; yVal += step) {
+  const y = height - (yVal / maxBitrate) * height;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(width, y);
+  ctx.stroke();
+  ctx.fillStyle = "#aaa";
+  ctx.fillText(`${yVal} кбит/с`, 8, y - 4);
+}
 
       if (graphData.length > 1) {
         const stepX = width / (graphData.length - 1);
