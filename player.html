@@ -143,7 +143,7 @@
   <div class="container">
     <img id="logo" src="" alt="logo" hidden />
     <h1 id="title">Загрузка...</h1>
-    <button class="back-button" onclick="location.href='index.html'">🔙Назад к списку</button>
+    <button class="back-button" onclick="location.href='index.html'">⏴ Назад к списку</button>
 
     <div id="player"></div>
 
@@ -307,12 +307,12 @@
       if (!isNaN(parseFloat(bitrate))) {
         const numeric = parseFloat(bitrate);
         bitrateHistory.push(numeric);
-        if (bitrateHistory.length > 3) bitrateHistory.shift();
+        if (bitrateHistory.length > 100) bitrateHistory.shift();
 
         // Автоматическое масштабирование
-      const visibleHistory = bitrateHistory.slice(-3); // если вы показываете последние 3 значения
-const maxInView = Math.max(...visibleHistory);
-maxBitrateDynamic = Math.ceil(maxInView / 10) * 10; // шаг можно оставить 50 или подобрать под себя
+        const visibleHistory = bitrateHistory.slice(-30);
+        const maxInView = Math.max(...visibleHistory, 100);
+        maxBitrateDynamic = Math.ceil(maxInView / 100) * 100;
 
         drawGraph(numeric);
 
@@ -349,7 +349,7 @@ maxBitrateDynamic = Math.ceil(maxInView / 10) * 10; // шаг можно ост�
 
     function drawGraph(value) {
       graphData.push(value);
-      if (graphData.length > 3) graphData.shift();
+      if (graphData.length > 100) graphData.shift();
 
       const width = canvas.width;
       const height = canvas.height;
