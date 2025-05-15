@@ -362,7 +362,7 @@
       ctx.strokeStyle = "#333";
       ctx.lineWidth = 1;
 
-      for (let yVal = 100; yVal <= maxBitrate; yVal += 100) {
+      for (let yVal = 100; yVal <= maxBitrate; yVal += 10) {
         const y = height - (yVal / maxBitrate) * height;
         ctx.beginPath();
         ctx.moveTo(0, y);
